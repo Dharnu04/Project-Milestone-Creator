@@ -662,21 +662,21 @@ with col_left:
     section("➕ Add-on Requirements")
 
     # Build live milestone reference list (dynamic based on toggles)
-    #def get_milestone_ref_list():
-        #refs = [
-            #("M1","Foundation & Setup"),
-            #("M2","Design Phase"),
-            #("M3","Development Phase"),
-            #("M4","Content & Configuration"),
-           # ("M5","Policies & SEO Basics"),
-      #  ]
-       # idx = 6
-       # if include_seo:
-          #  refs.append(("M6","SEO"))
-           # idx = 7
-      #  refs.append((f"M{idx}","QA & Testing"))
-      #  refs.append((f"M{idx+1}","Launch & Handover"))
-       # return refs
+    def get_milestone_ref_list():
+        refs = [
+            ("M1","Foundation & Setup"),
+            ("M2","Design Phase"),
+            ("M3","Development Phase"),
+            ("M4","Content & Configuration"),
+            ("M5","Policies & SEO Basics"),
+        ]
+        idx = 6
+        if include_seo:
+            refs.append(("M6","SEO"))
+            idx = 7
+        refs.append((f"M{idx}","QA & Testing"))
+        refs.append((f"M{idx+1}","Launch & Handover"))
+        return refs
 
     include_custom = st.checkbox("Add custom tasks?", value=False, key="custom_tog")
 
