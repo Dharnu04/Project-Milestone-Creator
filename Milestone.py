@@ -35,6 +35,11 @@ html,body,[class*="css"]{font-family:'DM Sans',sans-serif;}
 .sec-title{color:#96bf48;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1.8px;margin:16px 0 8px;}
 
 .sub-box{background:rgba(150,191,72,0.05);border-left:3px solid rgba(150,191,72,0.4);border-radius:0 8px 8px 0;padding:10px 14px;margin:4px 0 10px 2px;}
+/* Hide Streamlit auto-generated anchor links */
+.app-header h1 a,
+.app-header a {
+    display: none !important;
+}
 
 /* milestone ref list */
 .m-ref-list{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:14px 18px;margin-top:10px;}
