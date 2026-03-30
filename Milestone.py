@@ -487,6 +487,7 @@ def sub_close():
 if "plan" not in st.session_state:
     st.session_state.plan = None
     st.session_state.config = None
+    st.session_state.toast_msg = None
 if "custom_tasks" not in st.session_state:
     st.session_state.custom_tasks = []   # list of {task_name, milestone_key, days}
 
@@ -798,8 +799,10 @@ if generate_btn:
             # Custom add-ons
             "custom_addon_tasks": list(st.session_state.custom_tasks),
         }
+        already_existed = st.session_state.plan is not None 
         st.session_state.plan   = build_plan(cfg)
         st.session_state.config = cfg
+        st.session_state.toast_msg = "updated" if already_existed else "generated"
 
 
 # ═══════════════════════════════════════════════════════
@@ -807,6 +810,12 @@ if generate_btn:
 # ═══════════════════════════════════════════════════════
 
 with col_right:
+    if st.session_state.get("toast_msg") == "generated":
+        st.toast("✅ Milestone Generated!", icon="🎉")
+        st.session_state.toast_msg = None
+    elif st.session_state.get("toast_msg") == "updated":
+        st.toast("🔄 Milestone Updated!", icon="✏️")
+        st.session_state.toast_msg = None
     if st.session_state.plan:
         plan = st.session_state.plan
         cfg  = st.session_state.config
