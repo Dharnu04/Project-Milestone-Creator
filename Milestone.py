@@ -7,11 +7,12 @@ from reportlab.lib.units import cm
 from reportlab.platypus import (
     SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, HRFlowable
 )
-from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 import io
+import uuid
 
 # ═══════════════════════════════════════════════════════
 # PAGE CONFIG
@@ -26,9 +27,10 @@ st.markdown("""
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
 html,body,[class*="css"]{font-family:'DM Sans',sans-serif;}
 .main{background-color:#0f1117;}
-.stApp{background:linear-gradient(135deg,#0f1117 0%,#1a1d2e 100%);}
+/*.stApp{background:linear-gradient(135deg,#0f1117 0%,#1a1d2e 100%);}*/
+.stApp{background:linear-gradient(135deg,#0f1117 0%,#000000 100%);}
 
-.app-header{background:linear-gradient(90deg,#96bf48,#5e8e3e);border-radius:16px;padding:28px 36px;margin-bottom:28px;}
+.app-header{background:linear-gradient(155deg,#670C0C 0%,#C10801 30%,#F16001 60%,#D9C3AB 100%);border-radius:16px;padding:28px 36px;margin-bottom:28px;}
 .app-header h1{color:white;font-size:2rem;font-weight:700;margin:0;letter-spacing:-0.5px;}
 .app-header p{color:rgba(255,255,255,0.85);font-size:0.95rem;margin:4px 0 0;}
 
@@ -343,77 +345,199 @@ def build_plan(cfg: dict) -> list[dict]:
 # ═══════════════════════════════════════════════════════
 # PDF EXPORT
 # ═══════════════════════════════════════════════════════
-
 def generate_pdf(plan: list[dict], cfg: dict) -> bytes:
+    _uid = uuid.uuid4().hex[:8]
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4,
                             rightMargin=1.8*cm, leftMargin=1.8*cm,
-                            topMargin=2*cm, bottomMargin=2*cm)
-    SG=colors.HexColor("#5e8e3e"); SL=colors.HexColor("#96bf48")
-    DB=colors.HexColor("#0f1117"); RA=colors.HexColor("#f4f8f0"); WH=colors.white
+                            topMargin=1.5*cm, bottomMargin=1.5*cm)
+    SG = colors.HexColor("#000000") # Header row BG, table outer BOX border, milestone separator lines, title text
+    SL = colors.HexColor("#000000") # Thick right border after milestone column (can differ from SG)
+    DB = colors.HexColor("#000000") # Main table header row background (dark)
+    RA = colors.HexColor("#f5f5f5") # Alternating milestone stripe (even milestones) + summary row BG
+    WH = colors.white                 # Header text color, summary header text
+    LG = colors.HexColor("#e8f5d0")   # light green stripe for custom ⭐ tasks
 
     def ps(n, **kw): return ParagraphStyle(n, **kw)
+
     story = []
 
-    story.append(Paragraph(f"{cfg['project_name']} — Milestone Plan",
-        ps("T", fontName="Helvetica-Bold", fontSize=18, textColor=SG, spaceAfter=4)))
+    # ── Title ──────────────────────────────────────────────────────────────
     story.append(Paragraph(
-        f"Platform: Shopify  |  Working Days: {cfg['total_days']}  |  "
-        f"Start: {fmt_date(cfg['start_date'])}  |  End: {fmt_date(plan[-1]['end'])}",
-        ps("S", fontName="Helvetica", fontSize=9, textColor=colors.HexColor("#555"), spaceAfter=2)))
-    story.append(HRFlowable(width="100%", thickness=2, color=SG, spaceAfter=14))
+        f"{cfg['project_name']} — Milestone Plan",
+        ps("T", fontName="Helvetica-Bold", fontSize=14,
+           textColor=colors.HexColor("#000000"), spaceAfter=4)))
+    # story.append(st_tbl)
+    story.append(Spacer(1, 18))
 
-    # Summary
-    sd = [["Project","Client","Platform","Total Days","Start","End"],
-          [cfg["project_name"], cfg.get("client_name","—") or "—", "Shopify",
+    # ── Summary strip ──────────────────────────────────────────────────────
+    sd = [["Project", "Client", "Platform", "Total Days", "Start", "End"],
+          [cfg["project_name"], cfg.get("client_name", "—") or "—", "Shopify",
            str(cfg["total_days"]), fmt_date(cfg["start_date"]), fmt_date(plan[-1]["end"])]]
-    st = Table(sd, colWidths=[3.8*cm,3*cm,2.2*cm,2*cm,2.6*cm,2.6*cm])
-    st.setStyle(TableStyle([
-        ("BACKGROUND",(0,0),(-1,0),SG),("TEXTCOLOR",(0,0),(-1,0),WH),
-        ("FONTNAME",(0,0),(-1,0),"Helvetica-Bold"),("FONTSIZE",(0,0),(-1,-1),8),
-        ("FONTNAME",(0,1),(-1,1),"Helvetica"),("BACKGROUND",(0,1),(-1,1),RA),
-        ("GRID",(0,0),(-1,-1),0.5,colors.HexColor("#ccc")),
-        ("ALIGN",(0,0),(-1,-1),"CENTER"),("VALIGN",(0,0),(-1,-1),"MIDDLE"),
-        ("TOPPADDING",(0,0),(-1,-1),6),("BOTTOMPADDING",(0,0),(-1,-1),6),
+    st_tbl = Table(sd, colWidths=[3.8*cm, 3*cm, 2.2*cm, 2*cm, 2.6*cm, 2.6*cm])
+    st_tbl.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), SG), ("TEXTCOLOR", (0, 0), (-1, 0), WH),
+        ("FONTNAME",   (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE",   (0, 0), (-1, -1), 8),
+        ("FONTNAME",   (0, 1), (-1, 1), "Helvetica"),
+        ("BACKGROUND", (0, 1), (-1, 1), RA),
+        ("GRID",       (0, 0), (-1, -1), 0.5, colors.HexColor("#2c2c2c")),#--->
+        ("ALIGN",      (0, 0), (-1, -1), "CENTER"),
+        ("VALIGN",     (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING",    (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
     ]))
-    story.append(st); story.append(Spacer(1,18))
+    story.append(st_tbl)
+    story.append(Spacer(1, 18))
 
-    # Main table
-    tdata = [["Milestones","Tasks / Activity","Days\nAllocated","Start Date","End Date"]]
-    for m in plan:
-        task_text = "\n".join(f"• {t}" for t in m["tasks"])
-        tdata.append([
-            Paragraph(f"<b>{m['number']}</b><br/><font size='7.5'>{m['label']}</font>",
-                      ps("ms", fontName="Helvetica-Bold", fontSize=9, leading=13)),
-            Paragraph(task_text, ps("tk", fontName="Helvetica", fontSize=8, leading=12)),
-            Paragraph(f"<b>{m['days']}</b>",
-                      ps("dy", fontName="Helvetica-Bold", fontSize=10, alignment=TA_CENTER)),
-            Paragraph(fmt_date(m["start"]), ps("d1", fontName="Helvetica", fontSize=8, alignment=TA_CENTER)),
-            Paragraph(fmt_date(m["end"]),   ps("d2", fontName="Helvetica", fontSize=8, alignment=TA_CENTER)),
-        ])
-    row_styles = [("BACKGROUND",(0,i),(-1,i), WH if i%2==1 else RA) for i in range(1,len(tdata))]
-    mt = Table(tdata, colWidths=[3.8*cm,8.8*cm,1.8*cm,2.5*cm,2.5*cm], repeatRows=1)
-    mt.setStyle(TableStyle([
-        ("BACKGROUND",(0,0),(-1,0),DB),("TEXTCOLOR",(0,0),(-1,0),WH),
-        ("FONTNAME",(0,0),(-1,0),"Helvetica-Bold"),("FONTSIZE",(0,0),(-1,0),9),
-        ("ALIGN",(0,0),(-1,0),"CENTER"),
-        ("GRID",(0,0),(-1,-1),0.4,colors.HexColor("#ddd")),
-        ("BOX",(0,0),(-1,-1),1,SG),
-        ("TOPPADDING",(0,0),(-1,-1),7),("BOTTOMPADDING",(0,0),(-1,-1),7),
-        ("LEFTPADDING",(0,0),(-1,-1),7),("RIGHTPADDING",(0,0),(-1,-1),7),
-        ("VALIGN",(0,0),(-1,-1),"TOP"),
-        ("ALIGN",(2,0),(4,-1),"CENTER"),("VALIGN",(2,1),(4,-1),"MIDDLE"),
-        ("LINEAFTER",(0,0),(0,-1),2,SL),
-    ] + row_styles))
-    story.append(mt); story.append(Spacer(1,14))
+    # ── Main table — one row per task, with row-spanning ──────────────────
+    #
+    # Column layout:
+    #   0  Milestone name+number   3.8 cm   ← spans all task rows
+    #   1  Task                    8.8 cm
+    #   2  Days allocated          1.8 cm   ← spans
+    #   3  Start date              2.5 cm   ← spans
+    #   4  End date                2.5 cm   ← spans
+    #
+    COL_WIDTHS = [3.8*cm, 8.8*cm, 1.8*cm, 2.5*cm, 2.5*cm]
+
+    # Header row
+    tdata = [[
+        Paragraph("<b>Milestones</b>",
+                  ps(f"h0_{_uid}", fontName="Helvetica-Bold", fontSize=9,
+                     textColor=WH, alignment=TA_CENTER)),
+        Paragraph("<b>Tasks / Activity</b>",
+                  ps(f"h1_{_uid}", fontName="Helvetica-Bold", fontSize=9,
+                     textColor=WH, alignment=TA_LEFT)),
+        Paragraph("<b>Days\nAllocated</b>",
+                  ps(f"h2_{_uid}", fontName="Helvetica-Bold", fontSize=9,
+                     textColor=WH, alignment=TA_CENTER)),
+        Paragraph("<b>Start Date</b>",
+                  ps(f"h3_{_uid}", fontName="Helvetica-Bold", fontSize=9,
+                     textColor=WH, alignment=TA_CENTER)),
+        Paragraph("<b>End Date</b>",
+                  ps(f"h4_{_uid}", fontName="Helvetica-Bold", fontSize=9,
+                     textColor=WH, alignment=TA_CENTER)),
+    ]]
+
+    span_cmds   = []   # SPAN TableStyle commands built as we go
+    row_styles  = []   # background / font commands per row
+    current_row = 1    # row 0 = header
+
+    for m_idx, m in enumerate(plan):
+        tasks      = m["tasks"] if m["tasks"] else ["—"]
+        n_tasks    = len(tasks)
+        first_row  = current_row
+        last_row   = current_row + n_tasks - 1
+
+        # Alternating milestone background (light green / white)
+        ms_bg = RA if m_idx % 2 == 0 else WH
+
+        for t_idx, task in enumerate(tasks):
+            is_custom = task.endswith("⭐")
+            task_bg   = colors.HexColor("#f0f8e0") if is_custom else ms_bg
+
+            if t_idx == 0:
+                # First task row — put milestone info in cols 0, 2, 3, 4
+                row = [
+                    Paragraph(
+                        f"<b>{m['number']}</b><br/>"
+                        f"<font size='7.5'>{m['label']}</font>",
+                        ps(f"ms_{_uid}_{m_idx}",
+                           fontName="Helvetica-Bold", fontSize=9, leading=13,
+                           alignment=TA_CENTER)),
+                    Paragraph(
+                        # f"• {task}",
+                        task,
+                        ps(f"tk_{_uid}_{m_idx}_{t_idx}",
+                           fontName="Helvetica", fontSize=8, leading=12)),
+                    Paragraph(
+                        f"<b>{m['days']}</b>",
+                        ps(f"dy_{_uid}_{m_idx}",
+                           fontName="Helvetica", fontSize=8,
+                           alignment=TA_CENTER)),
+                    Paragraph(
+                        fmt_date(m["start"]),
+                        ps(f"d1_{_uid}_{m_idx}",
+                           fontName="Helvetica", fontSize=8,
+                           alignment=TA_CENTER)),
+                    Paragraph(
+                        fmt_date(m["end"]),
+                        ps(f"d2_{_uid}_{m_idx}",
+                           fontName="Helvetica", fontSize=8,
+                           alignment=TA_CENTER)),
+                ]
+            else:
+                # Subsequent task rows — cols 0, 2, 3, 4 will be spanned (empty)
+                row = [
+                    "",
+                    Paragraph(
+                        # f"• {task}",
+                        task,
+                        ps(f"tk_{_uid}_{m_idx}_{t_idx}",
+                           fontName="Helvetica", fontSize=8, leading=12)),
+                    "", "", "",
+                ]
+
+            tdata.append(row)
+
+            # Per-cell background for task column
+            row_styles.append(("BACKGROUND", (1, current_row), (1, current_row), task_bg))
+            # Background for spanned columns (milestone, days, start, end)
+            for col in [0, 2, 3, 4]:
+                row_styles.append(("BACKGROUND", (col, current_row), (col, current_row), ms_bg))
+
+            current_row += 1
+
+        # Register SPAN commands for cols 0, 2, 3, 4 across this milestone's rows
+        if n_tasks > 1:
+            for col in [0, 2, 3, 4]:
+                span_cmds.append(("SPAN", (col, first_row), (col, last_row)))
+
+        # Thick horizontal separator between milestones
+        row_styles.append(
+            ("LINEBELOW", (0, last_row), (-1, last_row), 1, SG)
+        )
+
+    # Build TableStyle
+    base_style = [
+        # Header
+        ("BACKGROUND", (0, 0), (-1, 0), DB),
+        ("TEXTCOLOR",  (0, 0), (-1, 0), WH),
+        ("FONTNAME",   (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE",   (0, 0), (-1, 0), 9),
+        ("ALIGN",      (0, 0), (-1, 0), "CENTER"),
+        # Global
+        ("GRID",     (0, 0), (-1, -1), 0.3, colors.HexColor("#262626")), #----> 
+        ("BOX",      (0, 0), (-1, -1), 1,   SG),
+        ("TOPPADDING",    (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 7),
+        ("RIGHTPADDING",  (0, 0), (-1, -1), 7),
+        ("VALIGN",    (0, 0), (-1, -1),  "TOP"),
+        # Milestone / Days / Dates columns — center + middle-align
+        ("ALIGN",  (0, 1), (0, -1), "CENTER"),
+        ("ALIGN",  (2, 1), (4, -1), "CENTER"),
+        ("VALIGN", (0, 1), (0, -1), "MIDDLE"),
+        ("VALIGN", (2, 1), (4, -1), "MIDDLE"),
+        # Thick right border after milestone column
+        ("LINEAFTER", (0, 0), (0, -1), 1, SL),
+    ]
+
+    mt = Table(tdata, colWidths=COL_WIDTHS, repeatRows=1)
+    mt.setStyle(TableStyle(base_style + row_styles + span_cmds))
+
+    story.append(mt)
+    story.append(Spacer(1, 14))
     story.append(Paragraph(
         f"Total Working Days: {cfg['total_days']} (can be extended by 4–5 days as buffer). "
-        "Generated by Shopify Milestone Creator.",
+        "All Design & Development Task will include a client review & Approval.",
         ps("ft", fontName="Helvetica-Oblique", fontSize=8,
            textColor=colors.HexColor("#888"), alignment=TA_CENTER)))
-    doc.build(story)
-    buf.seek(0); return buf.read()
 
+    doc.build(story)
+    buf.seek(0)
+    return buf.read()
 
 # ═══════════════════════════════════════════════════════
 # EXCEL EXPORT
